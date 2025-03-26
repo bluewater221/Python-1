@@ -1,0 +1,93 @@
+import pyttsx3
+import threading
+import keyboard  # For detecting keypresses
+
+class TextToSpeechSlow:
+    def __init__(self):
+        self.engine = pyttsx3.init()
+        rate = self.engine.getProperty('rate')
+        self.engine.setProperty('rate', rate - 50)  # Slower speech
+        self.is_paused = False
+        self.is_speaking = False
+        self.text = ""
+
+    def text_to_speech_slow(self, text):
+        self.text = text
+        self.is_speaking = True
+        self.is_paused = False
+        print("Speaking... Press 'p' to pause/resume, 'q' to quit.")
+        self.speech_thread = threading.Thread(target=self._speak)
+        self.speech_thread.start()
+        self._handle_input()
+
+    def _speak(self):
+        self.engine.say(self.text)
+        self.engine.startLoop()  # Non-blocking speech loop
+        while self.is_speaking and self.engine.isBusy():
+            if self.is_paused:
+                self.engine.stop()  # Pause by stopping the engine
+                while self.is_paused and self.is_speaking:
+                    pass  # Wait while paused
+            # Keep the loop responsive
+        self.engine.endLoop()
+        if not self.is_paused:
+            self.is_speaking = False
+
+    def _handle_input(self):
+        while self.is_speaking:
+            if keyboard.is_pressed('p'):  # Toggle pause/resume
+                self.is_paused = not self.is_paused
+                if self.is_paused:
+                    print("Paused. Press 'p' to resume.")
+                    self.engine.stop()
+                else:
+                    print("Resuming...")
+                    self.engine.say(self.text)  # Restart speech
+                    self.engine.iterate()
+                while keyboard.is_pressed('p'):  # Debounce key press
+                    pass
+            if keyboard.is_pressed('q'):  # Quit
+                self.is_speaking = False
+                self.is_paused = False
+                self.engine.stop()
+                print("Stopped.")
+                break
+
+if __name__ == "__main__":
+    tts = TextToSpeechSlow()
+    text = """ Section 100 of the document outlines the general specifications for road and bridge works. Here's a summary:
+
+Introduction: This section states that these specifications apply to all road and bridge works under the contract and must be carried out to the Engineer-in-Charge's satisfaction. It also references Indian Roads Congress (IRC) standards and clarifies that these specifications take precedence in case of conflicts.
+Definitions: This part defines key terms like "Contractor," "Engineer," and abbreviations such as IRC and BIS. It also includes figures illustrating road cross-section elements.
+Materials and Test Standards: This section indicates that relevant standards for materials and testing procedures are detailed throughout the specifications, with a list in Appendix-2.
+Sieve Designations: It specifies that sieve designations align with the Bureau of Indian Standards (IS:460) and provides a table of commonly used IS sieves.
+Scope of Work: This section describes the work under the contract, emphasizing that it includes conforming to drawings, and general works for road and bridge construction. It also details the Contractor's responsibilities regarding quality assurance, including the submission of a QA plan.
+Inspection of Materials: This part mandates that all materials must be inspected and accepted by the Engineer before use. It also outlines procedures for handling unacceptable materials and inspection of materials at the source.
+Delivery, Storage, and Handling of Materials: This section specifies proper handling and storage of materials to maintain quality and prevent contamination. It also addresses the use of vehicles for transportation and storage of materials within the right-of-way.
+Materials Furnished by the Employer: It outlines the conditions when the Employer supplies materials, including the Contractor's responsibilities.
+Laws to be Observed: The Contractor must comply with all relevant laws and ensure employee safety.
+Patented Devices, Materials, and Processes: If patented items are used, the Contractor must obtain the rights and include royalties in contract prices.
+Protection of Underground Services: The Contractor is responsible for protecting and any damage to underground utilities.
+Construction of Temporary Works: The Contractor is responsible for the design, execution, and maintenance of temporary works, subject to the Engineer's approval.
+Day and Night Work: The Contractor must ensure quality control during night work, with restrictions on concreting at night.
+Coordination: The Contractor must cooperate with the Engineer and other agencies at the site.
+Use of Explosives: The Contractor must obtain permission and adhere to safety regulations when using explosives.
+Construction Surveys: The Contractor is responsible for staking out the works and providing survey instruments and personnel.
+Clearance of Site on Completion of Work: The Contractor must clear the site upon completion.
+Construction Equipment: The Contractor must ensure that all construction equipment is in good working order and safely operated.
+Drawings: This section describes the use of drawings in conjunction with the specifications.
+Site Information: The Contractor is responsible for verifying site conditions.
+Setting Out: The Contractor is responsible for the accurate setting out of the works.
+Public Utilities: The Contractor must avoid disturbing public utilities and is responsible for any damage.
+Precautions for Safeguarding the Environment: The Contractor must take precautions to protect the environment and minimize disturbance.
+Arrangement for Traffic During Construction: The Contractor must manage traffic flow during construction, including providing a traffic management plan and traffic control devices.
+General Rules for the Measurement of Works for Payment: This section outlines the rules for measuring completed work.
+Scope of Rates for Different Items of Work: This section defines what is included in the rates quoted in the Bill of Quantities.
+Methodology and Sequence of Work: The Contractor must provide and adhere to a detailed work methodology approved by the Engineer.
+Crushed Stone Aggregates: These must meet IS:383 standards.
+Supply of Quarry Samples: The Contractor must supply material samples from quarries if required.
+Approval of Materials: All materials must be approved by the Engineer before use.
+Use of Surfaces by Traffic: The Contractor must allow traffic on completed sections if directed and is responsible for repairs unless otherwise specified.
+Field Laboratory: The Contractor must provide a field laboratory for testing materials and works.
+Supply of Project Record: The Contractor must supply a complete project record to the Engineer. """
+    tts.text_to_speech_slow(text)
