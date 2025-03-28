@@ -5,6 +5,7 @@ import os
 import threading
 import atexit
 import time
+import re
 
 app = Flask(__name__)
 
@@ -20,10 +21,15 @@ class TTSController:
         self.audio_file = "output.mp3"
         self.lock = threading.Lock()
 
+    def clean_text(self, text):
+        """Remove * and # from the text"""
+        return re.sub(r'[*#]', '', text)
+
     def play_audio(self, text):
         try:
+            cleaned_text = self.clean_text(text)
+            print(f"Cleaned text: {cleaned_text[:50]}...")
             with self.lock:
-                # Clean up any previous audio
                 print(f"Current state: is_speaking={self.is_speaking}, is_paused={self.is_paused}")
                 if self.is_speaking or os.path.exists(self.audio_file):
                     print("Cleaning up previous audio state")
@@ -39,48 +45,39 @@ class TTSController:
                         except Exception as e:
                             print(f"Error removing previous audio file: {e}")
 
-                # Limit text length for gTTS
-                if len(text) > 5000:
-                    text = text[:5000]
-                    print("Text truncated to 5000 characters for gTTS")
+                chunks = re.split(r'(?<=[.!?]) +', cleaned_text)
+                print(f"Text split into {len(chunks)} chunks")
 
-                print(f"Generating audio for text: {text[:50]}...")
-                tts = gTTS(text, slow=True)
-                tts.save(self.audio_file)
-                print(f"Audio file saved: {self.audio_file}")
-                pygame.mixer.music.load(self.audio_file)
-                print("Audio file loaded into pygame")
-                try:
-                    pygame.mixer.music.play()
-                    print("Audio playback started")
-                    self.is_speaking = True
-                except Exception as e:
-                    print(f"Error playing audio with pygame: {e}")
-                    self.is_speaking = False
-                    raise
-
-            while self.is_speaking and pygame.mixer.music.get_busy():
-                with self.lock:
-                    if self.is_paused:
-                        pygame.mixer.music.pause()
-                        print("Audio paused")
-                    else:
-                        pygame.mixer.music.unpause()
-                        print("Audio unpaused")
-                time.sleep(0.1)
-
-            with self.lock:
-                print("Playback finished or stopped")
-                self.is_speaking = False
-                self.is_paused = False
-                if os.path.exists(self.audio_file):
+                for i, chunk in enumerate(chunks):
+                    if len(chunk.strip()) == 0:
+                        continue
+                    print(f"Generating audio for chunk {i + 1}/{len(chunks)}: {chunk[:50]}...")
+                    tts = gTTS(chunk, slow=True)
+                    tts.save(self.audio_file)
+                    print(f"Audio file saved for chunk {i + 1}: {self.audio_file}")
+                    pygame.mixer.music.load(self.audio_file)
+                    print("Audio file loaded into pygame")
                     try:
-                        pygame.mixer.music.unload()
-                        time.sleep(0.2)
-                        os.remove(self.audio_file)
-                        print("Audio file removed after playback")
+                        pygame.mixer.music.play()
+                        print("Audio playback started for chunk")
+                        self.is_speaking = True
                     except Exception as e:
-                        print(f"Error removing audio file after playback: {e}")
+                        print(f"Error playing audio with pygame: {e}")
+                        self.is_speaking = False
+                        raise
+
+                    while pygame.mixer.music.get_busy():
+                        time.sleep(0.1)
+
+                    pygame.mixer.music.unload()
+                    time.sleep(0.2)
+                    os.remove(self.audio_file)
+                    print(f"Audio file removed after chunk {i + 1}")
+
+                with self.lock:
+                    print("Playback finished for all chunks")
+                    self.is_speaking = False
+                    self.is_paused = False
         except Exception as e:
             print(f"Error in play_audio: {e}")
             with self.lock:
@@ -179,6 +176,21 @@ def stop():
         return jsonify({'status': 'Stopped'})
     except Exception as e:
         print(f"Error in /stop: {e}")
+        return jsonify({'status': 'Error', 'message': str(e)}), 500
+
+@app.route('/clean', methods=['POST'])
+def clean():
+    print("Received /clean request")
+    text = request.form.get('text', '')
+    print(f"Text received for cleaning: {text[:50]}...")
+    if not text:
+        return jsonify({'cleaned_text': ''})
+    try:
+        cleaned_text = tts.clean_text(text)
+        print(f"Cleaned text: {cleaned_text[:50]}...")
+        return jsonify({'cleaned_text': cleaned_text})
+    except Exception as e:
+        print(f"Error in /clean: {e}")
         return jsonify({'status': 'Error', 'message': str(e)}), 500
 
 if __name__ == '__main__':

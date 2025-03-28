@@ -4,10 +4,36 @@
     <meta charset="UTF-8">
     <title>Text to Speech Web App</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-        textarea { width: 80%; height: 100px; margin-bottom: 10px; }
-        button { padding: 10px 20px; margin: 5px; }
-        #status { margin-top: 10px; font-weight: bold; }
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        textarea {
+            width: 80%;
+            height: 100px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #status {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        /* Styling for the Clean Text button */
+        .clean-button {
+            background-color: #ffcccb; /* Light red background */
+            border: 2px solid #ff0000; /* Red border */
+            color: #000; /* Black text */
+            font-weight: bold;
+        }
+        .clean-button:hover {
+            background-color: #ff9999; /* Darker red on hover */
+        }
     </style>
 </head>
 <body>
@@ -16,12 +42,22 @@
     <button onclick="speak()">Speak</button>
     <button id="pauseBtn" onclick="togglePause()" disabled>Pause</button>
     <button onclick="stop()">Stop</button>
+    <button onclick="cleanText()" class="clean-button">Clean Text</button>
     <div id="status">Ready</div>
 
     <script>
         function updateStatus(status) {
             console.log('Updating status to:', status);
             document.getElementById('status').innerText = status;
+        }
+
+        function cleanText() {
+            console.log('Clean Text button clicked');
+            const textarea = document.getElementById('textInput');
+            let text = textarea.value;
+            text = text.replace(/[*#]/g, ''); // Remove * and #
+            textarea.value = text;
+            updateStatus('Text cleaned');
         }
 
         async function makeRequest(url, options) {
@@ -60,7 +96,7 @@
                 updateStatus(data.status);
                 if (data.status === 'Speaking') {
                     document.getElementById('pauseBtn').disabled = false;
-                    pollStatus(); // Start polling the server for status
+                    pollStatus();
                 }
             } catch (error) {
                 console.error('Error in speak:', error);
@@ -105,7 +141,7 @@
                 updateStatus(data.status);
                 if (data.status === 'Speaking') {
                     document.getElementById('pauseBtn').disabled = false;
-                    setTimeout(pollStatus, 1000); // Poll every second
+                    setTimeout(pollStatus, 1000);
                 } else {
                     document.getElementById('pauseBtn').disabled = true;
                     document.getElementById('pauseBtn').innerText = 'Pause';
